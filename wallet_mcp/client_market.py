@@ -39,6 +39,7 @@ from market_ranking import change_pct, equal_weight  # noqa: E402,F401  # type: 
 
 BASKETS_FILE = ROOT / "references" / "baskets.json"
 BENCHMARK = "SPY"
+ON_DEMAND = "on demand"
 WINDOWS = (4, 13, 26, 52)
 SMA_WEEKS = 10
 #: Au-delà, un panier se lit sur ses premiers membres : le serveur plafonne chaque clé.
@@ -83,6 +84,11 @@ def resolve(symbol: str, held: list[dict] | None = None) -> dict | None:
             if member.get("symbol", "").upper() == wanted and member.get("conid"):
                 return {"symbol": wanted, "conid": member["conid"], "source": f"basket {name}",
                         "name": member.get("name")}
+    # Hors de notre univers (2026-11-22) : un titre américain se lit à la demande, par un
+    # identifiant local. Le serveur dira s'il le connaît ; ici on ne devine rien.
+    ticker = client_prices.on_demand_ticker_of(wanted)
+    if ticker:
+        return {"symbol": ticker, "conid": client_prices.on_demand_id(ticker), "source": ON_DEMAND}
     return None
 
 

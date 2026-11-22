@@ -49,8 +49,10 @@ python3 wallet_mcp/install_client.py --no-broker
 
 Then tell the assistant what you hold, or paste a statement: one holding per line with
 its symbol, quantity and cost price. The book is kept on your machine, in one currency,
-and valued at the last weekly close; it has no cash and no account value. A stock
-Tradewind has no prices for is refused rather than guessed. Skip to "First conversation".
+and valued at the last weekly close; it has no cash and no account value. A US stock
+outside the universe we collect is fetched the first time someone asks for it: its
+prices arrive within a few minutes, and it is valued at its cost price until then. A
+stock our price source does not know is refused rather than guessed. Skip to "First conversation".
 
 ## 1. Create Flex access in the IBKR portal (ten minutes, once)
 

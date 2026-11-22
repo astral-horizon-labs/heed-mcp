@@ -107,6 +107,19 @@ class Client:
         return self._request("GET", MARKET_PATH)
 
 
+    def get_symbol(self, market, ticker):
+        return self._request("GET", f"/v1/symbols/{market}/{ticker}.json")
+
+    def put_symbol(self, market, ticker, payload):
+        self._request("PUT", f"/v1/symbols/{market}/{ticker}.json", payload, hashlib.sha256(payload).hexdigest())
+
+    def put_unknown(self, market, ticker):
+        self._request("PUT", f"/v1/unknown/{market}/{ticker}", b"")
+
+    def get_wanted(self):
+        return json.loads(self._request("GET", "/v1/wanted"))["wanted"]
+
+
 def local_series(directory=None):
     """{nom: (chemin, sha256)} des séries locales, rien d'autre que `{conid}.json`."""
     directory = pathlib.Path(directory or data_root.prices_dir())

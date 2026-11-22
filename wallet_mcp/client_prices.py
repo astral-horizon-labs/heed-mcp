@@ -17,6 +17,13 @@ Une série gardée moins de `MAX_AGE_S` se relit sur le disque du client ; au-de
 la retire. Un serveur injoignable rend la copie gardée, avec l'erreur et sa date.
 Seules les clôtures RÉGLÉES sont rendues (`bar_calendar.completed_series`) : une
 semaine en cours n'est pas une bougie.
+
+LES TITRES À LA DEMANDE (2026-11-22). Un titre américain hors de notre univers n'a pas de
+conid chez nous. Il reçoit un identifiant local, calculé sur son symbole et réversible
+(`on_demand_id`), très au-dessus de tout conid IBKR : le reste du client continue de
+ranger ses séries par un entier, sans table de correspondance. Le serveur ne va pas
+chercher ce titre, il le note dans une file que le poste de collecte sert à sa passe
+suivante : la première demande rend « en cours », la suivante rend la série.
 """
 from __future__ import annotations
 
@@ -24,6 +31,7 @@ import datetime
 import json
 import os
 import pathlib
+import re
 import sys
 from typing import Callable
 
@@ -44,10 +52,58 @@ WEEKS = 104
 SeriesGetter = Callable[[str], bytes]
 
 
+#: Un titre américain tel que le serveur l'accepte : une classe d'actions s'écrit « BRK-B ».
+TICKER = re.compile(r"[A-Z][A-Z0-9]{0,5}(?:-[A-Z]{1,2})?")
+ON_DEMAND_MARKET = "US"
+#: Au-dessus de tout conid IBKR (dix chiffres au plus) et de tout symbole encodé.
+ON_DEMAND_BASE = 10 ** 15
+_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-"
+
+
+def on_demand_ticker_of(symbol: str) -> str | None:
+    """Le symbole tel que le serveur l'attend, ou None s'il n'a pas la forme d'un titre américain."""
+    wanted = symbol.strip().upper().replace(".", "-").replace(" ", "-")
+    return wanted if TICKER.fullmatch(wanted) else None
+
+
+def on_demand_id(ticker: str) -> int:
+    """L'identifiant local d'un titre à la demande : son symbole écrit en base 38."""
+    value = 0
+    for letter in ticker:
+        value = value * (len(_ALPHABET) + 1) + _ALPHABET.index(letter) + 1
+    return ON_DEMAND_BASE + value
+
+
+def on_demand_ticker(identifier) -> str | None:
+    """Le symbole derrière un identifiant local (ou derrière « identifiant.json »), sinon None."""
+    try:
+        value = int(str(identifier).removesuffix(".json")) - ON_DEMAND_BASE
+    except ValueError:
+        return None
+    if value <= 0:
+        return None
+    letters = []
+    while value:
+        value, digit = divmod(value, len(_ALPHABET) + 1)
+        if not digit:
+            return None
+        letters.append(_ALPHABET[digit - 1])
+    ticker = "".join(reversed(letters))
+    return ticker if TICKER.fullmatch(ticker) else None
+
+
 def server_getter(config: dict) -> tuple[SeriesGetter | None, str | None]:
-    """La fonction qui lit une série sur notre serveur, ou l'erreur de réglage."""
+    """La fonction qui lit une série sur notre serveur, ou l'erreur de réglage. Un
+    identifiant local se lit par son symbole, un conid par son numéro."""
     client, error = server_client(config)
-    return (client.get_series if client else None), error
+    if client is None:
+        return None, error
+
+    def getter(name: str) -> bytes:
+        ticker = on_demand_ticker(name)
+        return client.get_symbol(ON_DEMAND_MARKET, ticker) if ticker else client.get_series(name)
+
+    return getter, None
 
 
 def server_client(config: dict) -> tuple[prices_server.Client | None, str | None]:
@@ -72,6 +128,7 @@ def series(conid: int, folder: pathlib.Path, getter: SeriesGetter,
     fresh = path.exists() and (now.timestamp() - path.stat().st_mtime) < MAX_AGE_S
     stale_error = None
     missing = False
+    queue_code = None
     if not fresh:
         try:
             payload = getter(f"{conid}.json")
@@ -84,9 +141,14 @@ def series(conid: int, folder: pathlib.Path, getter: SeriesGetter,
             # Le serveur répond en français (il sert aussi le propriétaire) : son code fait foi.
             missing = error.status == 404
             stale_error = client_messages.server_error(error)
+            if str(error.code or "").startswith("symbol_"):
+                queue_code = error.code
         except (ValueError, UnicodeDecodeError):
             stale_error = "the server returned an unreadable series"
     if not path.exists():
+        if queue_code:
+            # La file des titres à la demande : la phrase du code, sans « HTTP 404 ».
+            return {"error": client_messages.SERVER_CODES.get(queue_code, stale_error), "code": queue_code}
         if missing:
             return {"error": "no series on our server for this holding (not collected yet)"}
         return {"error": f"series unavailable: {stale_error}"}

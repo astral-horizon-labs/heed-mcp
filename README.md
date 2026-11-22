@@ -46,6 +46,11 @@ The installer obtains its price server key by itself and registers the `tradewin
 server in Claude Code and Codex. Then tell your assistant what you hold, or paste a
 statement, and ask: "how is my portfolio doing?".
 
+Prices come from our server. It already collects about a thousand stocks and funds; a
+US stock outside that universe is fetched the first time someone asks for it and
+arrives within a few minutes. Stocks listed outside the US are available only when
+they belong to one of the 83 market baskets.
+
 **With an Interactive Brokers account**: create a Flex token and a positions query (ten
 minutes, once, step by step in
 [the installation guide](wallet_mcp/CLIENT.md#1-create-flex-access-in-the-ibkr-portal-ten-minutes-once)),

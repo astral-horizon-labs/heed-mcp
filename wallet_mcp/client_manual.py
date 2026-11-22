@@ -112,7 +112,21 @@ def refusal(symbol: str, quantity: float | None, price: float | None, currency: 
     if book["holdings"] and wanted != book["currency"]:
         return None, (f"the book is kept in {book['currency']} and has no exchange rate: a holding "
                       f"in {wanted} would distort every total, so it is not recorded")
-    return {**target, "currency": wanted}, None
+    note = None
+    if target["source"] == client_market.ON_DEMAND:
+        # Hors de notre univers : le serveur dit s'il connaît le titre AVANT qu'on le note.
+        # Un titre en cours de premier tirage s'enregistre, valorisé au coût en attendant.
+        getter, error = client_prices.server_getter(client_book.prices_config())
+        if error:
+            return None, error
+        found = client_prices.series(target["conid"], client_book.state_dir() / "series", getter,
+                                     client_book.now_utc())
+        if found.get("code") == "symbol_requested":
+            note = (f"{target['symbol']} is outside the universe we collect: its prices arrive in a few "
+                    "minutes, and it is valued at its cost price until then")
+        elif "error" in found:
+            return None, f"{target['symbol']}: {found['error']} — nothing recorded"
+    return {**target, "currency": wanted, "note": note}, None
 
 
 def describe(symbol: str, row: dict | None, book: dict) -> dict:
@@ -147,6 +161,7 @@ def add(symbol: str, quantity: float, price: float, currency: str | None = None,
         event = "added"
     write(book)
     return {"recorded": event, **describe(name, row, book),
+            **({"note": target["note"]} if target.get("note") else {}),
             "next": "`state` reads this stock; `book_states` reads the whole book"}
 
 
@@ -167,7 +182,8 @@ def set_exact(symbol: str, quantity: float, average_price: float, currency: str 
                               "added_on": (before or {}).get("added_on", now.date().isoformat()),
                               "updated_on": now.date().isoformat()}
     write(book)
-    return {"recorded": "replaced" if before else "added", **describe(name, book["holdings"][name], book)}
+    return {"recorded": "replaced" if before else "added", **describe(name, book["holdings"][name], book),
+            **({"note": target["note"]} if target.get("note") else {})}
 
 
 def remove(symbol: str, quantity: float | None = None, *, now: datetime.datetime | None = None) -> dict:
@@ -266,7 +282,7 @@ def import_text(text: str, replace: bool = False, currency: str | None = None, *
     book = {"currency": (currency or DEFAULT_CURRENCY).strip().upper(), "holdings": {}} if replace else read()
     if currency and not book["holdings"]:
         book["currency"] = currency.strip().upper()
-    recorded = []
+    recorded, pending = [], []
     for row in rows:
         target, error = refusal(row["symbol"], row["quantity"], row["price"], None, book)
         if error:
@@ -277,13 +293,18 @@ def import_text(text: str, replace: bool = False, currency: str | None = None, *
             "conid": target["conid"], "quantity": row["quantity"], "average_price": row["price"],
             "added_on": previous.get("added_on", now.date().isoformat()), "updated_on": now.date().isoformat()}
         recorded.append(target["symbol"])
+        if target.get("note"):
+            pending.append(target["symbol"])
     if not recorded:
         return {"error": "no line could be read: one holding per line, as symbol, quantity, cost price",
                 "rejected": rejected}
     write(book)
     return {"recorded": sorted(set(recorded)), "recorded_count": len(set(recorded)), "rejected": rejected,
             "currency": book["currency"], "holdings_count": len(book["holdings"]),
-            "next": "`book_states` reads the whole book; say which rejected lines to fix"}
+            "prices_arriving": sorted(set(pending)),
+            "next": ("`book_states` reads the whole book; say which rejected lines to fix"
+                     + ("; the stocks in `prices_arriving` are outside the universe we collect and are "
+                        "valued at their cost price for a few minutes" if pending else ""))}
 
 
 def load(getter=None, *, now: datetime.datetime | None = None) -> dict | None:

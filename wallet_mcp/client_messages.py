@@ -206,6 +206,11 @@ SERVER_CODES: dict[str, str] = {
     "invalid_series": "not a market series",
     "invalid_ranking": "not a market ranking",
     "gzip_expected": "gzip expected",
+    "symbol_requested": ("this stock is outside the universe we collect: its prices are being fetched for the "
+                         "first time, ask again in a few minutes"),
+    "symbol_unknown": "our price source does not know this stock",
+    "symbol_key_daily_limit": "daily limit of new stocks reached for this key, try again tomorrow",
+    "symbol_daily_limit": "daily limit of new stocks reached on our server, try again tomorrow",
 }
 
 

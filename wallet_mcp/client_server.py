@@ -122,6 +122,11 @@ With no profile, `book_states` returns `profile.offer`: answer as usual, then do
 says, in one sentence after the source line, once in the conversation; never insist.
 
 RULES:
+- A US stock outside the universe we collect is fetched on request, not instantly. When a
+  tool answers that its prices are "being fetched for the first time", say so plainly
+  and tell the user to ask again in a few minutes; never fill the gap with a guess. A
+  stock our price source does not know is said unknown. Stocks listed outside the US
+  are only available when they belong to our baskets.
 - A results release is the one thing the chart does not hold. Mention the next one
   only when it is expected within four weeks, in one clause; further away, leave it out
   unless the user asks. A release date is always ESTIMATED from the company's rhythm:
