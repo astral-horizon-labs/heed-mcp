@@ -52,7 +52,8 @@ FEAR_ALERTS = ("vix-regime-peur", "vix-terme-backwardation")
 SUPPORTIVE, CAUTIOUS, DEFENSIVE = "supportive", "cautious", "defensive"
 
 READING = (
-    "A state describes the chart, it does not forecast. Measured on 733 stocks over ten years "
+    "For you, not to recite: one clause is enough (\"a reading of the chart, not a forecast\"), "
+    "and the figures only if the user asks. A state describes the chart, it does not forecast. Measured on 733 stocks over ten years "
     "of weekly closes (to 2026-11-20): three months later the median gap with the market was "
     "the same after holds, fragile and broken. Leaving every broken stock cut the worst "
     "drawdown of an equal-weight book from -34% to -21% and its yearly gain from +20.0% to "
@@ -60,7 +61,7 @@ READING = (
     "state as a signal to sell or buy: say what the chart shows, and let the user decide "
     "whether their reason to own the stock still stands.")
 MOOD_READING = (
-    "The mood combines the S&P 500's own state with the method's two fear alerts; it has not "
+    "For you, not to recite. The mood combines the S&P 500's own state with the method's two fear alerts; it has not "
     "been measured as a signal. In the same ten-year study, selling a broken stock while the "
     "market itself was broken was the worst timing: it gained a median 6.5% over the next "
     "three months. A defensive market is a reason not to add risk, never a reason to sell.")
@@ -124,6 +125,13 @@ def classify(closes: list[float], bench: list[float]) -> dict | None:
     }
 
 
+def week_ending(week: str) -> str:
+    """Le vendredi de la semaine, que la série date par son lundi : c'est le jour de la
+    clôture citée. Né le 2026-11-22 : un assistant écrivait « clôture du 16/11 » pour
+    une clôture du vendredi 20."""
+    return (datetime.date.fromisoformat(week) + datetime.timedelta(days=4)).isoformat()
+
+
 def read_symbol(target: dict, bench: dict[str, float], getter, now: datetime.datetime) -> dict:
     """L'état d'un titre résolu, sur ses semaines communes avec le repère."""
     closes, _, error = client_market.weekly_closes(target["conid"], getter, now)
@@ -133,7 +141,7 @@ def read_symbol(target: dict, bench: dict[str, float], getter, now: datetime.dat
     found = classify([closes[week] for week in common], [bench[week] for week in common])
     if found is None:
         return {"error": f"fewer than {MIN_WEEKS} settled weeks in common with the market: too short to read"}
-    return {"last_settled_week": common[-1], **found}
+    return {"last_settled_week": common[-1], "week_ending": week_ending(common[-1]), **found}
 
 
 def market_closes(held: list[dict], getter, now: datetime.datetime) -> tuple[dict[str, float], str | None]:
@@ -189,8 +197,9 @@ def book_states(getter=None, *, now: datetime.datetime | None = None) -> dict:
         if "error" in read:
             unread.append({"symbol": symbol, "why": read["error"]})
             continue
+        names = client_market.baskets_of(symbol)
         groups[read["state"]].append({
-            "symbol": symbol, "value_base": row.get("value_base"),
+            "symbol": symbol, "value_base": row.get("value_base"), "basket": names[0] if names else None,
             **{key: read[key] for key in ("weeks_in_state", "week_pct", "vs_market_13w_pts",
                                           "breaks_below", "distance_to_break_pct", "at_the_edge")}})
     value = found["book_value"]
@@ -201,16 +210,31 @@ def book_states(getter=None, *, now: datetime.datetime | None = None) -> dict:
     def share(amount: float) -> float | None:
         return round(amount / value * 100, 2) if value else None
 
+    def last_week(rows: list[dict]) -> float:
+        """Ce que le groupe a gagné ou perdu sur la dernière semaine, en devise de base."""
+        return sum((row["value_base"] or 0) * (1 - 1 / (1 + row["week_pct"] / 100))
+                   for row in rows if row["week_pct"] is not None and row["week_pct"] > -100)
+
+    # Né le 2026-11-22 : à « combien je perds si la semaine se répète ? », un assistant
+    # écartait les lignes qui tiennent, faute de leur variation dans le résultat.
+    moves = {name: round(last_week(rows), 2) for name, rows in groups.items()}
     fragile = sorted(groups[FRAGILE], key=lambda row: row["distance_to_break_pct"] or 0)
     broken = sorted(groups[BROKEN], key=lambda row: row["value_base"] or 0, reverse=True)
     loss = sum((row["value_base"] or 0) * (row["distance_to_break_pct"] or 0) / 100 for row in fragile)
     return {
         "report_date": found["snapshot"]["date"], "base_currency": found["snapshot"]["fx"]["base"],
+        "week_ending": week_ending(max(bench)) if bench else None,
         "counts": {name: len(rows) for name, rows in groups.items()},
         "broken": broken, "broken_value_base": round(worth(broken), 2), "broken_value_pct": share(worth(broken)),
         "fragile": fragile, "fragile_value_base": round(worth(fragile), 2),
         "loss_if_fragile_break_base": round(-loss, 2), "loss_if_fragile_break_pct": share(-loss),
         "holds": sorted(row["symbol"] for row in groups[HOLDS]),
+        "holds_detail": sorted(({key: row[key] for key in ("symbol", "basket", "week_pct", "vs_market_13w_pts")}
+                                for row in groups[HOLDS]), key=lambda row: row["symbol"]),
+        "last_week": {"change_base": round(sum(moves.values()), 2), "change_pct": share(sum(moves.values())),
+                      "by_state_base": moves,
+                      "note": "every holding counted, the ones that hold included; a repeat of the "
+                              "same week would cost about the same"},
         "unread": unread,
         "how_to_tell_it": ("give the three counts first, then only the broken and the fragile "
                            "holdings; the ones that hold call for nothing and are not listed one by one"),
@@ -241,7 +265,7 @@ def market_mood(getter=None, *, now: datetime.datetime | None = None) -> dict:
         mood = SUPPORTIVE
     return {
         "mood": mood,
-        "last_settled_week": index["last_settled_week"],
+        "last_settled_week": index["last_settled_week"], "week_ending": index["week_ending"],
         "index": {key: index[key] for key in ("symbol", "state", "weeks_in_state", "close", "week_pct",
                                               "change_13w_pct", "below_52w_high_pct")},
         "fear_alerts": [{key: alert.get(key) for key in ("id", "label", "status", "value", "direction")}
