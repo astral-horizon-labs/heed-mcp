@@ -37,6 +37,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from mcp.server.mcpserver import Image, MCPServer  # noqa: E402
 
 import client_book  # noqa: E402
+import client_edgar  # noqa: E402
 import client_manual  # noqa: E402
 import client_market  # noqa: E402
 import client_nav  # noqa: E402
@@ -63,8 +64,9 @@ HOW TO ANSWER, every time:
    forecast) goes AFTER that line, in one sentence introduced by "General view, not
    verified by Tradewind:". Never mix the two, and leave it out when you have nothing.
 HARD LIMIT: 150 words for the whole answer, unless the user asks for more. It is read
-on a phone. Three points means three lines, not three paragraphs; name at most five
-stocks; leave out what the user did not ask (cost, NAV, setup) unless it is the point.
+on a phone. Three points means three lines, not three paragraphs, with no list inside
+a point; name at most five stocks; leave out what the user did not ask (cost, NAV,
+setup) unless it is the point.
 A tool's `reading`, `legend` or `how_to_tell_it` is guidance for you, never text to
 repeat. Answer in the user's language, translating the five parts and the state words.
 
@@ -82,12 +84,16 @@ WHICH TOOLS FOR WHICH QUESTION:
 - "What is strong right now?": `basket_ranking`, then `basket` on two or three leading
   baskets, then `state` or `weekly_chart` of one stock in each. Three to five names, one
   line each; the market itself is another question.
-- "What do you think of X?": `state` of X and its `weekly_chart`; `relative_strength`
-  with against="basket" when it belongs to a basket.
+- "What do you think of X?": `state` of X, its `weekly_chart` and its `earnings` (when it
+  reports next, and how much its release weeks have moved); `relative_strength` with
+  against="basket" when it belongs to a basket.
+- "What does the company earn?" / "what did it publish?": `figures` (revenue and net
+  income as declared) and `filings` (what it filed lately, with links).
 - "How is my portfolio doing?": `book_states`, with `book_summary` for its value. Give
   the three counts first, then only the broken and the fragile holdings.
-- "What should I look at?": `book_states` and `market_mood`; `plans_overview` when the
-  user has written plans. Three subjects at most, or "nothing calls for a decision".
+- "What should I look at?": `book_states`, `market_mood` and `upcoming_earnings` (the
+  holdings that report soon); `plans_overview` when the user has written plans. Three
+  subjects at most, or "nothing calls for a decision".
 - "Which sectors are taking over?": `basket_ranking`, comparing four weeks with thirteen.
 - "Which of my stocks lag their sector?": `book_states` and `basket_ranking`, two calls:
   a holding lags when its `vs_market_13w_pts` is well under its `basket`'s 13-week
@@ -116,6 +122,12 @@ With no profile, `book_states` returns `profile.offer`: answer as usual, then do
 says, in one sentence after the source line, once in the conversation; never insist.
 
 RULES:
+- A results release is the one thing the chart does not hold. Mention the next one
+  only when it is expected within four weeks, in one clause; further away, leave it out
+  unless the user asks. A release date is always ESTIMATED from the company's rhythm:
+  give its window and say "expected around", never a firm date. Say how much the stock moved in past release weeks, never which way it
+  will go: the size repeats, the direction does not. Companies that file nothing with
+  the SEC (foreign listings, funds) have no date: say so.
 - A state is a READING, never a signal: measured over ten years it did not forecast
   what a stock does next (`reading` has the figures, for when the user asks). Say what the
   chart shows and where the stock would break; never tell the user to sell or to buy
@@ -296,6 +308,34 @@ def set_profile(horizon: str = "", max_loss_pct: float = 0, max_weight_pct: floa
     sa valeur."""
     return client_profile.update(horizon or None, max_loss_pct or None, max_weight_pct or None,
                                  when_broken or None, never_buy)
+
+
+@mcp.tool(description='When a US-listed company reports its results: its past release dates (from its SEC filings), the next one ESTIMATED from its own rhythm with a two-week window, and how much the stock moved in the weeks of its past releases (median size, largest fall and rise). Works for any company that files with the SEC, held or not.')
+def earnings(symbol: str) -> dict:
+    """Quand la société publie ses résultats : ses dates passées, la prochaine estimée
+    sur son rythme, et ce que le cours a fait les semaines de ses publications."""
+    return client_edgar.earnings(symbol)
+
+
+@mcp.tool(description='The holdings expected to report their results within `days` days (14 by default), soonest first, each with its estimated window, how much its release weeks have moved and its weight in the book. Reads the SEC once per holding and keeps it twelve hours: the first call on a large book takes a few seconds per ten holdings.')
+def upcoming_earnings(days: int = 14) -> dict:
+    """Les lignes du livre dont la publication est attendue dans les `days` jours, la plus
+    proche d'abord."""
+    return client_edgar.upcoming(days=days)
+
+
+@mcp.tool(description='What a US-listed company filed with the SEC over the last four months, newest first: annual and quarterly reports, event reports with what they are about in plain words (results, an officer change, an agreement, a share offering…), each with its link. It says what was filed, not what it contains.')
+def filings(symbol: str) -> dict:
+    """Ce que la société a déposé à la SEC ces quatre derniers mois, en mots simples, avec
+    le lien de chaque dépôt."""
+    return client_edgar.filings(symbol)
+
+
+@mcp.tool(description='Revenue and net income as a US-listed company declared them to the SEC: the last five quarters and three years, and the change of the last quarter and year on the same period a year earlier. What the business earned, not what the stock is worth.')
+def figures(symbol: str) -> dict:
+    """Le chiffre d'affaires et le résultat net déclarés à la SEC, par trimestre et par an,
+    avec leur variation sur un an."""
+    return client_edgar.figures(symbol)
 
 
 @mcp.tool(description='One stock read from its weekly chart, held or not: it holds, it is fragile or it is broken, for how many weeks, its last settled close, its change over one and thirteen weeks against the market, how far it is from its one-year high, and the level under which it would break. A reading, not a signal: `reading` carries what ten years of prices say about it.')

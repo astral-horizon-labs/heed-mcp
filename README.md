@@ -24,10 +24,13 @@ Brokers account through its Flex report. It gives your assistant:
   by strength, and relative strength against SPY or against the holding's basket;
 - your NAV over time and your drawdowns, measured without deposits and withdrawals;
 - market regime alerts, read as a move with a direction, not as a red light.
+- what a US-listed company publishes, read from the SEC's public database: when it
+  reports next (estimated, with its window) and how much its release weeks have moved,
+  which of your holdings report soon, what it filed lately, its revenue and net income.
 
 It sends no orders. Your holdings, your account and your plans stay on your machine; only the IBKR
 identifier (conid) of a symbol goes to our price server when a chart or a comparison
-needs its prices.
+needs its prices, and the SEC sees which company's filings your machine reads.
 
 ## Install
 

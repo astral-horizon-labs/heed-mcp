@@ -28,10 +28,16 @@ report. It gives you, inside your assistant:
 - your NAV over time and your drawdowns, without deposits and withdrawals (`nav_history`,
   `drawdowns`, two optional queries);
 - the market regime alerts (`regime_alerts`).
+- what a US-listed company publishes, read from the SEC's public database: when it
+  reports its results next (an estimate from its own rhythm, with its window) and how
+  much its release weeks have moved, the holdings of your book that report soon, what it
+  filed lately, and its revenue and net income as declared (`earnings`,
+  `upcoming_earnings`, `filings`, `figures`).
 
 It sends no orders. Your portfolio never leaves your machine: your holdings, the Flex
 report and your plans stay there. Only the IBKR identifier (conid) of a symbol goes to our price server
-when a chart or a comparison needs its prices.
+when a chart or a comparison needs its prices, and the SEC sees which company's filings
+your machine reads.
 
 ## Without a broker account (two minutes)
 
