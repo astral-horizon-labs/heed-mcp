@@ -39,6 +39,7 @@ for folder in (ROOT / "scripts", pathlib.Path(__file__).resolve().parent):
 import client_book  # noqa: E402
 import client_market  # noqa: E402
 import client_plans  # noqa: E402
+import client_profile  # noqa: E402
 import client_regime  # noqa: E402
 import client_risk  # noqa: E402
 
@@ -169,8 +170,17 @@ def state(symbol: str, getter=None, *, now: datetime.datetime | None = None) -> 
     found = read_symbol(target, bench, getter, now)
     if "error" in found:
         return {"error": f"{target['symbol']}: {found['error']}"}
-    return {"symbol": target["symbol"], "held": target["source"] == "holding",
-            "benchmark": client_market.BENCHMARK, **found, "reading": READING}
+    is_held = target["source"] == "holding"
+    weight = None
+    if is_held:
+        book, _ = client_risk.context(now)
+        weight = next((row.get("weight_value_pct") for row in (book or {}).get("rows", {}).values()
+                       if row["symbol"].split(" @")[0].upper() == target["symbol"]), None)
+    return {"symbol": target["symbol"], "held": is_held, "weight_pct": weight,
+            "benchmark": client_market.BENCHMARK, **found,
+            "profile": client_profile.for_stock(target["symbol"], found["state"], is_held, weight,
+                                                client_market.baskets_of(target["symbol"])),
+            "reading": READING}
 
 
 def book_states(getter=None, *, now: datetime.datetime | None = None) -> dict:
@@ -199,7 +209,8 @@ def book_states(getter=None, *, now: datetime.datetime | None = None) -> dict:
             continue
         names = client_market.baskets_of(symbol)
         groups[read["state"]].append({
-            "symbol": symbol, "value_base": row.get("value_base"), "basket": names[0] if names else None,
+            "symbol": symbol, "value_base": row.get("value_base"), "weight_pct": row.get("weight_value_pct"),
+            "basket": names[0] if names else None,
             **{key: read[key] for key in ("weeks_in_state", "week_pct", "vs_market_13w_pts",
                                           "breaks_below", "distance_to_break_pct", "at_the_edge")}})
     value = found["book_value"]
@@ -236,6 +247,12 @@ def book_states(getter=None, *, now: datetime.datetime | None = None) -> dict:
                       "note": "every holding counted, the ones that hold included; a repeat of the "
                               "same week would cost about the same"},
         "unread": unread,
+        "profile": client_profile.for_book(
+            broken,
+            sum(row.get("cost_base") or 0 for row in found["rows"].values()) or None,
+            sum(row.get("value_base") or 0 for row in found["rows"].values()), -loss,
+            [{"symbol": row["symbol"], "weight_pct": row["weight_pct"], "state": name}
+             for name, rows in groups.items() for row in rows]),
         "how_to_tell_it": ("give the three counts first, then only the broken and the fragile "
                            "holdings; the ones that hold call for nothing and are not listed one by one"),
         "reading": READING,

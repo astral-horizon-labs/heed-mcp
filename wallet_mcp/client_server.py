@@ -41,6 +41,7 @@ import client_manual  # noqa: E402
 import client_market  # noqa: E402
 import client_nav  # noqa: E402
 import client_plans  # noqa: E402
+import client_profile  # noqa: E402
 import client_regime  # noqa: E402
 import client_risk  # noqa: E402
 import client_states  # noqa: E402
@@ -102,6 +103,17 @@ WHICH TOOLS FOR WHICH QUESTION:
   the report after the nightly batch, then read the stock.
 - A new user with no holdings: ask what they hold, or for a statement to paste. No
   broker account is needed.
+- "Set up my profile" / an answer to one of the five questions: `set_profile`, with only
+  the answers given; `profile` shows what is set and what is still to ask.
+
+THE USER'S PROFILE. Five answers (horizon, bearable loss, largest share in one stock,
+what they do with a broken stock, what they refuse to buy) make the rule of their portfolio.
+`book_states` and `state` return `profile.checks`: what each rule says today. When a
+check applies, say it in the user's own terms, starting with "By your rule" (translated),
+and keep the action in "Next:" consistent with it. It is THEIR rule, never a Tradewind
+signal. One clause per rule that applies, inside the three points, not a fourth one.
+With no profile, `book_states` returns `profile.offer`: answer as usual, then do what it
+says, in one sentence after the source line, once in the conversation; never insist.
 
 RULES:
 - A state is a READING, never a signal: measured over ten years it did not forecast
@@ -268,6 +280,22 @@ def import_holdings(text: str, replace: bool = False, currency: str = "") -> dic
     """Lit un relevé ou un CSV collé, de n'importe quel courtier : une ligne par titre,
     sa quantité et son prix de revient. Rend ce qui est noté et chaque ligne écartée."""
     return client_manual.import_text(text, replace, currency or None)
+
+
+@mcp.tool(description="The user's profile: the five answers that make the rule of their portfolio (horizon, bearable loss, largest share in one stock, what they do with a broken stock, what they refuse to buy), each with what it means, and the questions still to ask.")
+def profile() -> dict:
+    """Le profil du client : ses cinq réponses, ce que chacune veut dire, et les questions
+    qui restent à poser."""
+    return client_profile.get()
+
+
+@mcp.tool(description='Records the answers the user gives to the profile questions; an answer not given keeps its value. `horizon`: under_a_year, one_to_five_years or over_five_years. `max_loss_pct`: how far below what they paid the portfolio may fall, in percent. `max_weight_pct`: the largest share of the portfolio they accept in one stock, in percent. `when_broken`: review (decide case by case), trim (sell half), exit (sell) or hold (keep). `never_buy`: what they refuse to buy, as a list; an empty list means nothing.')
+def set_profile(horizon: str = "", max_loss_pct: float = 0, max_weight_pct: float = 0,
+                when_broken: str = "", never_buy: list[str] | None = None) -> dict:
+    """Note les réponses du client aux questions du profil ; une réponse non donnée garde
+    sa valeur."""
+    return client_profile.update(horizon or None, max_loss_pct or None, max_weight_pct or None,
+                                 when_broken or None, never_buy)
 
 
 @mcp.tool(description='One stock read from its weekly chart, held or not: it holds, it is fragile or it is broken, for how many weeks, its last settled close, its change over one and thirteen weeks against the market, how far it is from its one-year high, and the level under which it would break. A reading, not a signal: `reading` carries what ten years of prices say about it.')

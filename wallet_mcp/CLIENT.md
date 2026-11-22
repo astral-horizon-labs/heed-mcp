@@ -6,6 +6,10 @@ statement pasted from any broker), or your Interactive Brokers account through i
 report. It gives you, inside your assistant:
 
 - your book at cost and its holdings (`book_summary`, `positions`);
+- your own rule, from five questions asked once: when you need the money, the loss you
+  can bear, the largest share you accept in one stock, what you do with a broken stock,
+  what you refuse to buy (`profile`, `set_profile`). The assistant then reads your portfolio by
+  your rule and says so; it stays your rule, not a signal;
 - your book read by exception, with nothing to write: how many holdings hold, which are
   fragile and which are broken on their weekly chart, and the market in one word
   (`book_states`, `state`, `market_mood`). A reading, not a signal: each result carries

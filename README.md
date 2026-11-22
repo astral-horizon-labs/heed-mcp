@@ -6,6 +6,9 @@ portfolio by price, read-only. Your portfolio is what you tell your assistant ("
 Brokers account through its Flex report. It gives your assistant:
 
 - your book at cost and its holdings;
+- your own rule, from five questions asked once (when you need the money, the loss you
+  can bear, the largest share you accept in one stock, what you do with a broken stock,
+  what you refuse to buy): your portfolio is then read by your rule, and the answer says so;
 - your book read by exception, with nothing to write: how many holdings hold, which are
   fragile and which are broken on their weekly chart, the level under which each would
   break, and the market in one word. A reading, not a signal: each result carries what
