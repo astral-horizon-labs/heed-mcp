@@ -42,6 +42,7 @@ import client_nav  # noqa: E402
 import client_plans  # noqa: E402
 import client_regime  # noqa: E402
 import client_risk  # noqa: E402
+import client_states  # noqa: E402
 
 INSTRUCTIONS = """\
 The user's investment book, read from IBKR through their Flex report, read-only.
@@ -62,12 +63,18 @@ Rules:
   the market is not carrying the bet, even in a rise.
 - Risk is the money lost if a holding goes to its exit (`position_risk`, `book_risk`). A
   holding without a written exit has unbounded risk: say it first.
-- Every holding has a plan: thesis, what confirms it (`if_hit`), what invalidates it
-  (`if_miss`), the next decision, and at least one exit level. A holding without a plan
-  or without an exit gets one with `set_plan`, after `weekly_chart`. Levels are
-  horizontal, judged on the weekly close, and justified by the visible candles.
-- Call `plans_overview` at the start of a conversation: whatever crossed a level comes
-  before anything else, and its `if_miss` says what the plan intended.
+- A book is read by exception, with nothing to write: `book_states` says how many
+  holdings hold, which are fragile and which are broken, straight from their weekly
+  charts; `state` reads one stock, held or not; `market_mood` says the market in one
+  word. Give the counts first, then only the fragile and the broken.
+- A state is a READING, never a signal: measured over ten years it did not forecast
+  what a stock does next (each result carries the figures in `reading`). Say what the
+  chart shows and where the stock would break; never "sell" or "buy" because of a state.
+- A written plan is optional. A holding the user wants to follow closely can get one
+  with `set_plan`, after `weekly_chart`: thesis, what confirms it (`if_hit`), what
+  invalidates it (`if_miss`), the next decision, and levels that are horizontal, judged
+  on the weekly close and justified by the visible candles. When plans exist,
+  `plans_overview` says which levels were crossed, and `if_miss` what the plan intended.
 - A regime alert lags by construction: talking about it means saying where the move is
   heading (`direction`, `recent_settled`), what it changes for the affected holdings and
   what would confirm it, in plain words. Name one alert only if it teaches something,
@@ -192,6 +199,28 @@ def book_risk() -> dict:
     """Le livre face à ses sorties : les lignes au risque non borné d'abord, puis la perte
     jusqu'à la sortie de chaque autre ligne, et la perte si toutes les sorties tombent."""
     return client_risk.book_risk()
+
+
+@mcp.tool(description='One stock read from its weekly chart, held or not: it holds, it is fragile or it is broken, for how many weeks, its last settled close, its change over one and thirteen weeks against the market, how far it is from its one-year high, and the level under which it would break. A reading, not a signal: `reading` carries what ten years of prices say about it.')
+def state(symbol: str) -> dict:
+    """L'état d'un titre lu sur son graphique hebdomadaire : il tient, il est fragile ou
+    il a cassé, depuis combien de semaines, et le niveau où il casserait. Une lecture."""
+    return client_states.state(symbol)
+
+
+@mcp.tool(description='The whole book by exception, with nothing written beforehand: how many holdings hold, are fragile or are broken; the broken ones by value, the fragile ones by distance to their breaking level, the money lost if every fragile holding breaks, and the holdings that hold as a plain list. Start here for "how is my portfolio doing?".')
+def book_states() -> dict:
+    """Le livre par exception, sans rien d'écrit : combien de lignes tiennent, sont fragiles
+    ou cassées, les cassées par valeur, les fragiles par distance à leur cassure, et la
+    perte si toutes les fragiles cassent."""
+    return client_states.book_states()
+
+
+@mcp.tool(description='The market in one word, supportive, cautious or defensive: the S&P 500 read like any stock (holds, fragile, broken) crossed with the method\'s two fear alerts, with the figures behind the word. A defensive market is a reason not to add risk, never a reason to sell: `reading` says why.')
+def market_mood() -> dict:
+    """Le marché en un mot, porteur, prudent ou défensif : l'état du S&P 500 croisé avec
+    les deux alertes de peur de la méthode."""
+    return client_states.market_mood()
 
 
 @mcp.tool(description='Plans to re-read: review date passed, review within two weeks, plans without a review date (flagged stale after 180 days), and holdings without a plan.')

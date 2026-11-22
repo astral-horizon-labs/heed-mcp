@@ -4,9 +4,13 @@ The Tradewind MCP server reads your Interactive Brokers account through its Flex
 read-only, and gives you, inside your assistant:
 
 - your book at cost and its holdings (`book_summary`, `positions`);
+- your book read by exception, with nothing to write: how many holdings hold, which are
+  fragile and which are broken on their weekly chart, and the market in one word
+  (`book_states`, `state`, `market_mood`). A reading, not a signal: each result carries
+  what ten years of prices say about it;
 - a two-year weekly chart of each holding, with your average cost and your plan levels,
   and of any symbol you are studying (`weekly_chart`);
-- one plan per holding, written by the assistant and tracked at every weekly close:
+- if you want one, a plan per holding, written by the assistant and tracked at every weekly close:
   thesis, what confirms it, what invalidates it, exit and add levels (`set_plan`,
   `plan`, `plans_overview`), with its review dates and history (`reviews_due`,
   `plan_history`);

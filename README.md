@@ -4,10 +4,15 @@ Tradewind is a local MCP server for Claude Code and Codex. It reads your Interac
 Brokers account through its Flex report, read-only, and gives your assistant:
 
 - your book at cost and its holdings;
+- your book read by exception, with nothing to write: how many holdings hold, which are
+  fragile and which are broken on their weekly chart, the level under which each would
+  break, and the market in one word. A reading, not a signal: each result carries what
+  ten years of weekly closes say about it;
 - a two-year weekly chart of each holding, with your average cost and your plan levels,
   and of any symbol you are studying;
-- one written plan per holding (thesis, what confirms it, what invalidates it, exit,
-  add), tracked at every weekly close, with its review dates and its history;
+- if you want one, a written plan per holding (thesis, what confirms it, what
+  invalidates it, exit, add), tracked at every weekly close, with its review dates and
+  its history;
 - the risk of each holding and of the whole book if every exit is hit, holdings
   without an exit first;
 - the 83 market baskets ranked against SPY after each close, the members of each ranked

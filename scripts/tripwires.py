@@ -526,7 +526,7 @@ def _bars(uni, symbol, bar, today=None):
 
 
 
-    manque = settlement_gap(b, bar, week_ends_sunday=sunday_week_end(uni, symbol))
+    manque = settlement_gap(b, bar, today, week_ends_sunday=sunday_week_end(uni, symbol))
     if manque:
         p = "clôture" + ("s" if manque > 1 else "")
         return None, (f"cache {bar} de {symbol} EN RETARD de {manque} {p} réglée(s) — "
@@ -548,10 +548,10 @@ def _period_end(ts, bar, week_ends_sunday=False):
 def settlement_gap(b, bar, aujourdhui=None, week_ends_sunday=False):
     """Combien de clôtures RÉGLÉES manquent entre la dernière du cache et aujourd'hui."""
     if bar == "1D":
-        lag = settlement_lag(b, bar, week_ends_sunday=week_ends_sunday)
+        lag = settlement_lag(b, bar, today=aujourdhui, week_ends_sunday=week_ends_sunday)
         return lag[0] if lag else 0
     auj = aujourdhui or datetime.date.today()
-    settled = settled_series(b, bar)
+    settled = settled_series(b, bar, today=aujourdhui)
     if not settled:
         return 0
     fin = _period_end(settled[-1][0], bar, week_ends_sunday)
@@ -731,7 +731,7 @@ def _condition(tw):
     return tw["kind"]
 
 
-def topic_value(tw, uni):
+def topic_value(tw, uni, today=None):
     """(value, asof, label, why) d'un tripwire de topic — la valeur COURANTE,"""
     if tw["kind"] == "book":
         drawdown = book.nav_drawdown()
@@ -742,11 +742,11 @@ def topic_value(tw, uni):
     if tw["kind"] == "count":
         states = []
         for leg in count_legs(tw):
-            status, line = check(leg, uni)
+            status, line = check(leg, uni, today=today)
             if status == "UNVERIFIABLE":
                 return None, None, None, f"{tw['id']}: jambe {leg['num']}/{leg['den']} — {line}"
             states.append((leg, status == "TRIGGERED", line))
-        rows, _ = ratio_rows(states[0][0], uni)
+        rows, _ = ratio_rows(states[0][0], uni, today=today)
         week = f"semaine finie {rows[-1][0]}" if rows else "semaine finie inconnue"
         asof = ", ".join(f"{leg['num']}/{leg['den']} {'sous' if on else 'au-dessus de'} sa SMA{tw['window']}"
                          for leg, on, _ in states)
@@ -754,7 +754,7 @@ def topic_value(tw, uni):
         return (float(sum(on for _, on, _ in states)), f"{week} — {asof}",
                 f"{label} sous SMA{tw['window']} {tw['bar']}", None)
     if tw["kind"] == "close":
-        b, why = _bars(uni, tw["symbol"], tw["bar"])
+        b, why = _bars(uni, tw["symbol"], tw["bar"], today=today)
         if why:
             return None, None, None, (f"{tw['id']}: {_condition(tw)} "
                                       f"[{method_label(tw['method'])}] — {why}")
@@ -765,7 +765,7 @@ def topic_value(tw, uni):
             asof += f" (partiel {partial[1]:.4g} au {partial[0][:10]})"
         return value, asof, f"{tw['symbol']} clôture {tw['bar']}", None
     if tw["kind"] == "sma":
-        b, why = _bars(uni, tw["symbol"], tw["bar"])
+        b, why = _bars(uni, tw["symbol"], tw["bar"], today=today)
         if why:
             return None, None, None, (f"{tw['id']}: {_condition(tw)} "
                                       f"[{method_label(tw['method'])}] — {why}")
@@ -782,7 +782,7 @@ def topic_value(tw, uni):
         return (close / sma, f"{asof} — clôture {close:.4g} / SMA{n} {sma:.4g}{ctx}",
                 f"{tw['symbol']}÷SMA{n} {tw['bar']}", None)
     if "window" in tw:
-        rows, why = ratio_rows(tw, uni)
+        rows, why = ratio_rows(tw, uni, today=today)
         if why:
             return None, None, None, f"{tw['id']}: {why}"
         n = tw["window"]
@@ -791,9 +791,9 @@ def topic_value(tw, uni):
             return None, None, None, f"{tw['id']}: {why}"
         return (rows[-1][1] / sma, f"{asof} — ratio {rows[-1][1]:.4g} / SMA{n} {sma:.4g}",
                 f"{tw['num']}/{tw['den']}÷SMA{n} {tw['bar']}", None)
-    num, why = _bars(uni, tw["num"], tw["bar"])
+    num, why = _bars(uni, tw["num"], tw["bar"], today=today)
     if not why:
-        den, why = _bars(uni, tw["den"], tw["bar"])
+        den, why = _bars(uni, tw["den"], tw["bar"], today=today)
     if why:
         return None, None, None, f"{tw['id']}: {why}"
     if tw["bar"] == "1M":
@@ -822,13 +822,13 @@ def topic_value(tw, uni):
             f"{tw['num']}/{tw['den']} {tw['bar']}", None)
 
 
-def recent_values(tw, uni, n):
+def recent_values(tw, uni, n, today=None):
     """Les `n` dernières valeurs RÉGLÉES d'un tripwire close ou ratio, de la plus"""
     bar = tw["bar"]
     if tw["kind"] == "close":
-        b, why = _bars(uni, tw["symbol"], bar)
+        b, why = _bars(uni, tw["symbol"], bar, today=today)
         return [] if why else [c for _, c in settled_series(b, bar)[-n:]]
-    rows, why = ratio_rows(tw, uni)
+    rows, why = ratio_rows(tw, uni, today=today)
     if why:
         return []
     if "window" not in tw:
@@ -839,11 +839,11 @@ def recent_values(tw, uni, n):
             for i in range(max(w - 1, len(rows) - n), len(rows))]
 
 
-def ratio_rows(tw, uni):
+def ratio_rows(tw, uni, today=None):
     """([(période, num/den)] des périodes RÉGLÉES COMMUNES aux deux jambes, raison)."""
     bar = tw["bar"]
-    num, why = _bars(uni, tw["num"], bar)
-    den, why2 = _bars(uni, tw["den"], bar) if not why else (None, why)
+    num, why = _bars(uni, tw["num"], bar, today=today)
+    den, why2 = _bars(uni, tw["den"], bar, today=today) if not why else (None, why)
     if why or why2:
         return [], why or why2
     ns = {bar_calendar.bar_period(ts, bar): c for ts, c in settled_series(num, bar)}
@@ -869,12 +869,12 @@ def expired_on(tw, today: datetime.date | None = None):
     return day if day < (today or datetime.date.today()) else False
 
 
-def check(tw, uni):
+def check(tw, uni, today=None):
     """(status, ligne). status ∈ armed | TRIGGERED | UNVERIFIABLE."""
     why = validate(tw, uni)
     if why:
         return "UNVERIFIABLE", why
-    value, asof, label, why = topic_value(tw, uni)
+    value, asof, label, why = topic_value(tw, uni, today=today)
     if why:
         return "UNVERIFIABLE", why
     hit, cond = _verdict(value, tw)
@@ -882,7 +882,7 @@ def check(tw, uni):
     release = 1 if tw["kind"] == "count" else tw.get("release_closes", 1)
     if release > 1:
         cond += f", levée après {release} clôtures consécutives"
-        recent = recent_values(tw, uni, release)
+        recent = recent_values(tw, uni, release, today=today)
         hit = any(_verdict(v, tw)[0] for v in recent)
         asof += " ; dernières " + ", ".join(f"{v:.4g}" for v in recent)
     line = (f"{label} = {value:.4g} vs {cond} [{method_label(tw['method'])}] — {asof}")

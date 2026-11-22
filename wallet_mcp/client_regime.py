@@ -107,12 +107,12 @@ def regime_alerts(getter=None, *, now: datetime.datetime | None = None) -> dict:
         if not symbols_of(alert) <= set(universe):
             status, line = "UNVERIFIABLE", "series missing on the price server"
         else:
-            status, line = tripwires.check(alert, universe)
-        value, as_of, _, why = (tripwires.topic_value(alert, universe)
+            status, line = tripwires.check(alert, universe, today=now.date())
+        value, as_of, _, why = (tripwires.topic_value(alert, universe, today=now.date())
                                 if status != "UNVERIFIABLE" else (None, None, None, line))
         recent = []
         if status != "UNVERIFIABLE" and alert["kind"] in ("close", "ratio"):
-            recent = [round(v, 4) for v in tripwires.recent_values(alert, universe, RECENT)]
+            recent = [round(v, 4) for v in tripwires.recent_values(alert, universe, RECENT, today=now.date())]
         text = english.get(alert["id"], {})
         as_of = client_messages.english(str(as_of)) if as_of else None
         rows.append({
