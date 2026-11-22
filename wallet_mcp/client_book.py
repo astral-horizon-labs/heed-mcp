@@ -213,7 +213,14 @@ def load_book(fetcher: Fetcher | None = None, *, force: bool = False,
     """Le snapshot du client (format du backend), avec la fraîcheur du tirage."""
     config, error = read_config()
     if error:
-        return {"error": error}
+        # Sans rapport Flex configuré, le livre est celui que le client a dit dans la
+        # conversation (2026-11-22) : même format, donc mêmes lecteurs en aval.
+        import client_manual
+        manual = client_manual.load(now=now)
+        if manual is not None:
+            return manual
+        return {"error": f"no holdings yet: tell the assistant what you hold (`add_holding`, "
+                         f"`import_holdings`), or connect IBKR — {error}"}
     report = refresh(config, fetcher or default_fetcher, force=force, now=now)
     if "error" in report:
         return report
@@ -285,7 +292,7 @@ def book_summary(fetcher: Fetcher | None = None, **options) -> dict:
     return {
         "date": snapshot["date"],
         "fetched_at": book["fetched_at"],
-        "source": "flex",
+        "source": book.get("source", "flex"),
         "base_currency": snapshot["fx"]["base"],
         "net_liquidation": amount(summary.get("net_liquidation")),
         "total_cash_value": amount(summary.get("total_cash_value")),
@@ -306,6 +313,7 @@ def setup_status() -> dict:
     return {
         "config_file": str(config_path()),
         "config_error": error,
+        "book_source": "IBKR Flex report" if error is None else "holdings told in the conversation",
         "cash_report": bool(config and config.get("query_id_cash")),
         "nav_history": bool(config and config.get("query_id_nav")),
         "deposits_withdrawals": bool(config and config.get("query_id_cashtx")),

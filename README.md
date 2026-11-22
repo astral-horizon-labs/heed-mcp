@@ -1,7 +1,9 @@
 # Tradewind — the MCP server for Interactive Brokers investors
 
-Tradewind is a local MCP server for Claude Code and Codex. It reads your Interactive
-Brokers account through its Flex report, read-only, and gives your assistant:
+Tradewind is a local MCP server for Claude Code and Codex. It reads the market and your
+portfolio by price, read-only. Your portfolio is what you tell your assistant ("I hold
+50 NVDA bought at 120", or a statement pasted from any broker), or your Interactive
+Brokers account through its Flex report. It gives your assistant:
 
 - your book at cost and its holdings;
 - your book read by exception, with nothing to write: how many holdings hold, which are
@@ -20,25 +22,28 @@ Brokers account through its Flex report, read-only, and gives your assistant:
 - your NAV over time and your drawdowns, measured without deposits and withdrawals;
 - market regime alerts, read as a move with a direction, not as a red light.
 
-It sends no orders. Your account and your plans stay on your machine; only the IBKR
+It sends no orders. Your holdings, your account and your plans stay on your machine; only the IBKR
 identifier (conid) of a symbol goes to our price server when a chart or a comparison
 needs its prices.
 
 ## Install
 
-1. **Create Flex access in the IBKR portal** (ten minutes, once): a Flex token and a
-   positions query, step by step in
-   [the installation guide](wallet_mcp/CLIENT.md#1-create-flex-access-in-the-ibkr-portal-ten-minutes-once).
-2. **Install**, with Python 3.11 or newer:
+**Without a broker account**, with Python 3.11 or newer:
 
 ```bash
 git clone https://github.com/astral-horizon-labs/tradewind.git
 cd tradewind
-python3 wallet_mcp/install_client.py --check
+python3 wallet_mcp/install_client.py --no-broker
 ```
 
-The installer asks for the token and the query ID, obtains its price server key by
-itself, registers the `tradewind` server in Claude Code and Codex, then fetches your
-book a first time. Then ask: "give me a rundown of my book".
+The installer obtains its price server key by itself and registers the `tradewind`
+server in Claude Code and Codex. Then tell your assistant what you hold, or paste a
+statement, and ask: "how is my portfolio doing?".
+
+**With an Interactive Brokers account**: create a Flex token and a positions query (ten
+minutes, once, step by step in
+[the installation guide](wallet_mcp/CLIENT.md#1-create-flex-access-in-the-ibkr-portal-ten-minutes-once)),
+then run `python3 wallet_mcp/install_client.py --check`. Your holdings then come from
+IBKR's nightly report.
 
 Questions and feedback: this repository's issues.

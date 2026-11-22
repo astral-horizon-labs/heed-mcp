@@ -37,6 +37,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 from mcp.server.mcpserver import Image, MCPServer  # noqa: E402
 
 import client_book  # noqa: E402
+import client_manual  # noqa: E402
 import client_market  # noqa: E402
 import client_nav  # noqa: E402
 import client_plans  # noqa: E402
@@ -94,16 +95,22 @@ WHICH TOOLS FOR WHICH QUESTION:
   book moved, by state, every holding counted.
 - "Warn me if X closes the week under N": `set_plan` with one exit level on a holding,
   then `position_risk` for what that exit costs.
-- A purchase typed in the conversation cannot be recorded: holdings come from the IBKR
-  report, where a trade appears after the nightly batch. Say so, then read the stock.
+- "I bought 20 LLY at 1340" / "I hold…": `add_holding` (a purchase), `set_holding` (the
+  exact quantity and cost), `remove_holding` (a sale), then read the stock with `state`.
+  A pasted statement or CSV: `import_holdings`, then say what was read and what was not.
+  When the book comes from IBKR these tools refuse: say that the trade will appear in
+  the report after the nightly batch, then read the stock.
+- A new user with no holdings: ask what they hold, or for a statement to paste. No
+  broker account is needed.
 
 RULES:
 - A state is a READING, never a signal: measured over ten years it did not forecast
   what a stock does next (`reading` has the figures, for when the user asks). Say what the
   chart shows and where the stock would break; never tell the user to sell or to buy
   because of a state. A defensive market is a reason not to add risk, not to sell.
-- The Flex report is the last session IBKR has processed (nightly batch): quote its
-  `date`, and `notes` when they say data is missing or a fetch failed.
+- The book is either the IBKR Flex report (the last session IBKR processed, nightly
+  batch) or the holdings the user told you, valued at the last weekly close with no cash
+  (`source` says which). Quote its `date`, and `notes` when they say data is missing.
 - Weights are read at COST (`weight_cost_pct`): the money committed per holding.
   Without a Cash Report query, NAV and cash are `null`: never infer them.
 - A holding is judged against its market first: rising less than its basket or SPY
@@ -234,6 +241,33 @@ def book_risk() -> dict:
     """Le livre face à ses sorties : les lignes au risque non borné d'abord, puis la perte
     jusqu'à la sortie de chaque autre ligne, et la perte si toutes les sorties tombent."""
     return client_risk.book_risk()
+
+
+@mcp.tool(description='Records a purchase the user tells you, when no broker is connected: the holding is created, or grows with its average cost recomputed. `price` is the price paid per share. Refused for a stock Tradewind has no prices for, for a second currency in the same book, and when the book comes from IBKR.')
+def add_holding(symbol: str, quantity: float, price: float, currency: str = "") -> dict:
+    """Note un achat dit dans la conversation, sans courtier connecté : la ligne naît, ou
+    grossit avec un prix de revient moyen recalculé."""
+    return client_manual.add(symbol, quantity, price, currency or None)
+
+
+@mcp.tool(description='Sets a holding exactly as the user states it, when no broker is connected: this quantity and this average cost replace what was recorded. Use it to correct a holding or to enter one already owned.')
+def set_holding(symbol: str, quantity: float, average_price: float, currency: str = "") -> dict:
+    """Pose une ligne telle que le client la donne : quantité et prix de revient moyen
+    remplacent ce qui était noté."""
+    return client_manual.set_exact(symbol, quantity, average_price, currency or None)
+
+
+@mcp.tool(description='Records a sale the user tells you, when no broker is connected: the whole holding, or `quantity` shares of it at the same average cost.')
+def remove_holding(symbol: str, quantity: float = 0) -> dict:
+    """Note une vente dite dans la conversation : toute la ligne, ou `quantity` titres."""
+    return client_manual.remove(symbol, quantity or None)
+
+
+@mcp.tool(description='Reads a statement or a CSV pasted by the user, from any broker: one holding per line with its symbol, quantity and cost price, with or without a header row. Returns what was recorded and each rejected line with its reason. `replace=True` starts from an empty book; otherwise a line read replaces the holding of the same symbol.')
+def import_holdings(text: str, replace: bool = False, currency: str = "") -> dict:
+    """Lit un relevé ou un CSV collé, de n'importe quel courtier : une ligne par titre,
+    sa quantité et son prix de revient. Rend ce qui est noté et chaque ligne écartée."""
+    return client_manual.import_text(text, replace, currency or None)
 
 
 @mcp.tool(description='One stock read from its weekly chart, held or not: it holds, it is fragile or it is broken, for how many weeks, its last settled close, its change over one and thirteen weeks against the market, how far it is from its one-year high, and the level under which it would break. A reading, not a signal: `reading` carries what ten years of prices say about it.')

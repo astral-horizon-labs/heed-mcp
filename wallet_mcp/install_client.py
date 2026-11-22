@@ -102,12 +102,13 @@ def collect(args, current: dict, ask: bool) -> tuple[dict, list[str]]:
         given = getattr(args, flag, None)
         if given:
             merged[key] = given.strip()
-        elif ask and question and not merged.get(key):
+        elif ask and question and not merged.get(key) and not getattr(args, "no_broker", False):
             reader = getpass.getpass if secret else input
             answer = reader(f"  {question} : ").strip()
             if answer:
                 merged[key] = answer
-    missing = [key for key, _, _, _, required in FIELDS if required and not merged.get(key)]
+    missing = [key for key, _, _, _, required in FIELDS if required and not merged.get(key)
+               and not getattr(args, "no_broker", False)]
     return merged, missing
 
 
@@ -180,6 +181,8 @@ def main(argv=None) -> int:
         parser.add_argument(f"--{flag.replace('_', '-')}", dest=flag, help=question or (
             "price server URL (ours by default)" if flag == "prices_url"
             else "price server key (requested from the server by default)"))
+    parser.add_argument("--no-broker", action="store_true",
+                        help="no IBKR account: you tell the assistant what you hold, or paste a statement")
     parser.add_argument("--no-register", action="store_true",
                         help="do not register the server in Claude Code or Codex")
     parser.add_argument("--no-input", action="store_true",
@@ -215,7 +218,11 @@ def main(argv=None) -> int:
         say("· " + register_claude())
         say("· " + register_codex())
     say("Check:")
-    rc = status(args.check)
+    rc = status(args.check and not args.no_broker)
+    if rc == 0 and args.no_broker:
+        say("Ready: in Claude Code or Codex, say what you hold (\"I hold 50 NVDA bought at 120\") "
+            "or paste a statement, then ask \"how is my portfolio doing?\".")
+        return 0
     say("Ready: in Claude Code or Codex, ask \"give me a rundown of my book\"."
         if rc == 0 else "⛔ the check failed: see the message above and wallet_mcp/CLIENT.md")
     return rc

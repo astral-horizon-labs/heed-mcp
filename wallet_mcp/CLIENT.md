@@ -1,7 +1,9 @@
 # Tradewind in Claude Code or Codex — installation
 
-The Tradewind MCP server reads your Interactive Brokers account through its Flex report,
-read-only, and gives you, inside your assistant:
+The Tradewind MCP server reads your portfolio and the market by price, read-only. Your
+portfolio is either what you tell the assistant ("I hold 50 NVDA bought at 120", or a
+statement pasted from any broker), or your Interactive Brokers account through its Flex
+report. It gives you, inside your assistant:
 
 - your book at cost and its holdings (`book_summary`, `positions`);
 - your book read by exception, with nothing to write: how many holdings hold, which are
@@ -23,11 +25,27 @@ read-only, and gives you, inside your assistant:
   `drawdowns`, two optional queries);
 - the market regime alerts (`regime_alerts`).
 
-It sends no orders. Your account never leaves your machine: the Flex report and your
-plans stay there. Only the IBKR identifier (conid) of a symbol goes to our price server
+It sends no orders. Your portfolio never leaves your machine: your holdings, the Flex
+report and your plans stay there. Only the IBKR identifier (conid) of a symbol goes to our price server
 when a chart or a comparison needs its prices.
 
+## Without a broker account (two minutes)
+
+Python 3.11 or newer. In the repository folder:
+
+```bash
+python3 wallet_mcp/install_client.py --no-broker
+```
+
+Then tell the assistant what you hold, or paste a statement: one holding per line with
+its symbol, quantity and cost price. The book is kept on your machine, in one currency,
+and valued at the last weekly close; it has no cash and no account value. A stock
+Tradewind has no prices for is refused rather than guessed. Skip to "First conversation".
+
 ## 1. Create Flex access in the IBKR portal (ten minutes, once)
+
+For an Interactive Brokers account. Holdings then come from IBKR's nightly report, and
+the assistant no longer records them by hand.
 
 IBKR portal → **Performance & Reports** → **Flex Queries**.
 
