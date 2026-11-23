@@ -162,7 +162,7 @@ def add(symbol: str, quantity: float, price: float, currency: str | None = None,
     write(book)
     return {"recorded": event, **describe(name, row, book),
             **({"note": target["note"]} if target.get("note") else {}),
-            "next": "`state` reads this stock; `book_states` reads the whole book"}
+            "next": "`stock_check` reads this stock; `book_states` reads the whole book"}
 
 
 def set_exact(symbol: str, quantity: float, average_price: float, currency: str | None = None, *,

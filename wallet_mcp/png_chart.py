@@ -72,10 +72,10 @@ class Canvas:
                 + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
 
 
-def weekly_png(bars: list[dict], cost: float | None = None,
-               levels: list[dict] | None = None) -> tuple[bytes, list[float]]:
-    """(PNG, prix des lignes de la grille de haut en bas). `bars` : {o, h, l, c} datées ;
-    `levels` : seuils du plan {px, effect}, tracés en trait plein de trois pixels."""
+def frame(bars: list[dict], cost: float | None = None, levels: list[dict] | None = None):
+    """Le cadre commun au dessin et à ses axes : (prix → ordonnée en pixels, rang → abscisse
+    du centre de la bougie, bas, haut, niveaux du plan retenus). Une seule définition, pour
+    qu'un repère d'axe tombe sur la ligne qu'il nomme."""
     levels = [level for level in (levels or []) if level.get("px") and level["px"] > 0]
     extra = ([cost] if cost else []) + [level["px"] for level in levels]
     lows = [bar["l"] for bar in bars if bar["l"] > 0]
@@ -83,12 +83,43 @@ def weekly_png(bars: list[dict], cost: float | None = None,
     low, high = min(lows + extra), max(highs + extra)
     low, high = low * 0.97, high * 1.03
     top, bottom = MARGIN_Y, HEIGHT - MARGIN_Y
-    left, right = MARGIN_X, WIDTH - MARGIN_X
+    slot = (WIDTH - 2 * MARGIN_X) / max(len(bars), 1)
 
     def y_of(price: float) -> int:
         share = (math.log(high) - math.log(max(price, low))) / (math.log(high) - math.log(low))
         return round(top + share * (bottom - top))
 
+    def x_of(index: int) -> int:
+        return round(MARGIN_X + slot * (index + 0.5))
+
+    return y_of, x_of, low, high, levels
+
+
+def axes(bars: list[dict], cost: float | None = None, levels: list[dict] | None = None) -> dict:
+    """Les repères des deux axes, en parts de l'image (0 à gauche et en haut, 1 à droite et
+    en bas). POURQUOI (2026-11-22) : l'image ne porte aucun texte, et sur un téléphone un
+    graphique sans prix ni dates ne se lit pas. Une page qui montre l'image pose ces repères
+    par-dessus : `prices` nomme les lignes de la grille, `dates` le premier lundi de chaque
+    trimestre, `cost` le prix de revient quand il est tracé."""
+    y_of, x_of, low, high, _levels = frame(bars, cost, levels)
+    dates, quarter = [], None
+    for index, bar in enumerate(bars):
+        week = str(bar.get("week") or "")
+        found = (week[:4], (int(week[5:7]) - 1) // 3) if len(week) >= 7 and week[5:7].isdigit() else None
+        if found and quarter is not None and found != quarter:
+            dates.append({"week": week, "x": round(x_of(index) / WIDTH, 4)})
+        quarter = found or quarter
+    return {"prices": [{"px": price, "y": round(y_of(price) / HEIGHT, 4)} for price in nice_levels(low, high)],
+            "dates": dates,
+            "cost": {"px": cost, "y": round(y_of(cost) / HEIGHT, 4)} if cost else None}
+
+
+def weekly_png(bars: list[dict], cost: float | None = None,
+               levels: list[dict] | None = None) -> tuple[bytes, list[float]]:
+    """(PNG, prix des lignes de la grille de haut en bas). `bars` : {o, h, l, c} datées ;
+    `levels` : seuils du plan {px, effect}, tracés en trait plein de trois pixels."""
+    y_of, x_of, low, high, levels = frame(bars, cost, levels)
+    left, right = MARGIN_X, WIDTH - MARGIN_X
     canvas = Canvas(WIDTH, HEIGHT)
     grid = nice_levels(low, high)
     for price in grid:
@@ -105,7 +136,7 @@ def weekly_png(bars: list[dict], cost: float | None = None,
     body = max(1, int(slot * 0.6))
     for index, bar in enumerate(bars):
         color = UP if bar["c"] >= bar["o"] else DOWN
-        center = round(left + slot * (index + 0.5))
+        center = x_of(index)
         canvas.fill(center, y_of(bar["h"]), center, y_of(bar["l"]), color)
         canvas.fill(center - body // 2, y_of(max(bar["o"], bar["c"])),
                     center - body // 2 + body - 1, y_of(min(bar["o"], bar["c"])), color)

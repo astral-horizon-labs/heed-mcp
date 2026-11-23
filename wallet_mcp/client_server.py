@@ -49,7 +49,9 @@ import client_states  # noqa: E402
 
 INSTRUCTIONS = """\
 Tradewind reads the market and the user's Interactive Brokers book by price, read-only.
-For any question about the market, a stock or their portfolio, call THESE tools first.
+For any question about the market, a stock or their portfolio, call THESE tools first,
+before any web search and before your own knowledge. "Should I buy X?", "Do I invest in
+X?", "J'investis sur X ?", "What about X?" are stock questions: read X here first.
 
 HOW TO ANSWER, every time:
 1. One sentence first: the verdict, in plain words.
@@ -67,6 +69,9 @@ HARD LIMIT: 150 words for the whole answer, unless the user asks for more. It is
 on a phone. Three points means three lines, not three paragraphs, with no list inside
 a point; name at most five stocks; leave out what the user did not ask (cost, NAV,
 setup) unless it is the point.
+NO DISCLAIMER. Never write that you are not a financial adviser, that this is not
+advice, or that you cannot decide for the user: start with the verdict. Tradewind says
+what the price shows, not what will happen, and the answer already says so.
 A tool's `reading`, `legend` or `how_to_tell_it` is guidance for you, never text to
 repeat. Answer in the user's language, translating the five parts and the state words.
 
@@ -82,10 +87,11 @@ WHICH TOOLS FOR WHICH QUESTION:
 - "Where is the market?": `market_mood`, then `basket_ranking` for what leads and what
   lags, and `weekly_chart` of SPY.
 - "What is strong right now?": `basket_ranking`, then `basket` on two or three leading
-  baskets, then `state` or `weekly_chart` of one stock in each. Three to five names, one
+  baskets, then `stock_check` or `weekly_chart` of one stock in each. Three to five names, one
   line each; the market itself is another question.
-- "What do you think of X?": `state` of X, its `weekly_chart` and its `earnings` (when it
-  reports next, and how much its release weeks have moved); `relative_strength` with
+- "What do you think of X?" / "Should I buy X?" / "Do I invest in X?": `stock_check` of X, its
+  `weekly_chart` and its `earnings` (when it reports next, and how much its release weeks
+  have moved); `relative_strength` with
   against="basket" when it belongs to a basket.
 - "What does the company earn?" / "what did it publish?": `figures` (revenue and net
   income as declared) and `filings` (what it filed lately, with links).
@@ -103,7 +109,7 @@ WHICH TOOLS FOR WHICH QUESTION:
 - "Warn me if X closes the week under N": `set_plan` with one exit level on a holding,
   then `position_risk` for what that exit costs.
 - "I bought 20 LLY at 1340" / "I hold…": `add_holding` (a purchase), `set_holding` (the
-  exact quantity and cost), `remove_holding` (a sale), then read the stock with `state`.
+  exact quantity and cost), `remove_holding` (a sale), then read the stock with `stock_check`.
   A pasted statement or CSV: `import_holdings`, then say what was read and what was not.
   When the book comes from IBKR these tools refuse: say that the trade will appear in
   the report after the nightly batch, then read the stock.
@@ -114,7 +120,7 @@ WHICH TOOLS FOR WHICH QUESTION:
 
 THE USER'S PROFILE. Five answers (horizon, bearable loss, largest share in one stock,
 what they do with a broken stock, what they refuse to buy) make the rule of their portfolio.
-`book_states` and `state` return `profile.checks`: what each rule says today. When a
+`book_states` and `stock_check` return `profile.checks`: what each rule says today. When a
 check applies, say it in the user's own terms, starting with "By your rule" (translated),
 and keep the action in "Next:" consistent with it. It is THEIR rule, never a Tradewind
 signal. One clause per rule that applies, inside the three points, not a fourth one.
@@ -190,6 +196,7 @@ def weekly_chart(symbol: str) -> list | dict:
     if "error" in result:
         return result
     png = result.pop("png")
+    result.pop("axes", None)  # les repères d'axe servent à une page, pas à l'assistant
     return [Image(data=png, format="png"), result]
 
 
@@ -235,6 +242,7 @@ def with_image(result: dict) -> list | dict:
     if "error" in result:
         return result
     png = result.pop("png")
+    result.pop("axes", None)
     return [Image(data=png, format="png"), result]
 
 
@@ -343,8 +351,8 @@ def figures(symbol: str) -> dict:
     return client_edgar.figures(symbol)
 
 
-@mcp.tool(description='One stock read from its weekly chart, held or not: it holds, it is fragile or it is broken, for how many weeks, its last settled close, its change over one and thirteen weeks against the market, how far it is from its one-year high, and the level under which it would break. A reading, not a signal: `reading` carries what ten years of prices say about it.')
-def state(symbol: str) -> dict:
+@mcp.tool(description='Start here for any question about one stock or ETF, by name or ticker, held or not: "should I buy Apple?", "do I invest in NVDA?", "what about Tesla?", "is it time to sell?". Call it before searching the web. The stock read from its weekly chart: it holds, it is fragile or it is broken, for how many weeks, its last settled close, its change over one and thirteen weeks against the market, how far it is from its one-year high, and the level under which it would break. A reading, not a signal: `reading` carries what ten years of prices say about it.')
+def stock_check(symbol: str) -> dict:
     """L'état d'un titre lu sur son graphique hebdomadaire : il tient, il est fragile ou
     il a cassé, depuis combien de semaines, et le niveau où il casserait. Une lecture."""
     return client_states.state(symbol)

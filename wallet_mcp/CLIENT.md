@@ -12,7 +12,7 @@ report. It gives you, inside your assistant:
   your rule and says so; it stays your rule, not a signal;
 - your book read by exception, with nothing to write: how many holdings hold, which are
   fragile and which are broken on their weekly chart, and the market in one word
-  (`book_states`, `state`, `market_mood`). A reading, not a signal: each result carries
+  (`book_states`, `stock_check`, `market_mood`). A reading, not a signal: each result carries
   what ten years of prices say about it;
 - a two-year weekly chart of each holding, with your average cost and your plan levels,
   and of any symbol you are studying (`weekly_chart`);

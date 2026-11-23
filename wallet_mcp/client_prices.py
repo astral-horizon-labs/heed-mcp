@@ -43,6 +43,7 @@ for folder in (ROOT / "scripts", pathlib.Path(__file__).resolve().parent):
 import atomic_file  # noqa: E402  # type: ignore[import-not-found]
 import bar_calendar  # noqa: E402  # type: ignore[import-not-found]
 import client_messages  # noqa: E402
+import client_tenant  # noqa: E402
 import prices_server  # noqa: E402  # type: ignore[import-not-found]
 
 DEFAULT_URL = "https://wallet-prices.kakobaba1212.workers.dev"
@@ -116,6 +117,9 @@ def server_client(config: dict) -> tuple[prices_server.Client | None, str | None
         except OSError as error:
             return None, f"price server key unreadable ({error.__class__.__name__})"
     if not url or not key:
+        if client_tenant.hosted():
+            # Hébergé, la clé est la nôtre : la personne n'a rien à installer ni à régler.
+            return None, "prices are unavailable right now: the service is being set up, try again later"
         return None, ("no price server key (prices_key in client.json): run "
                       "`python3 wallet_mcp/install_client.py` again, it obtains one by itself")
     return prices_server.Client(url.rstrip("/"), key), None

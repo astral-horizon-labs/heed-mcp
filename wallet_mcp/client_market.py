@@ -180,7 +180,8 @@ def relative_strength(symbol: str, against: str = BENCHMARK, getter=None, *,
     other = [bench[week] for week in common]
     ratio = [a / b for a, b in zip(own, other)]
     sma = sum(ratio[-SMA_WEEKS:]) / SMA_WEEKS
-    png, grid = png_chart.weekly_png(ratio_bars(closes, bench, client_prices.WEEKS))
+    drawn = ratio_bars(closes, bench, client_prices.WEEKS)
+    png, grid = png_chart.weekly_png(drawn)
     windows = {}
     for weeks in WINDOWS:
         mine, theirs = change_pct(own, weeks), change_pct(other, weeks)
@@ -190,6 +191,7 @@ def relative_strength(symbol: str, against: str = BENCHMARK, getter=None, *,
     trend = ("improving" if recent[-1] > recent[0] else "deteriorating" if recent[-1] < recent[0] else "flat")
     return {
         "png": png,
+        "axes": png_chart.axes(drawn),
         "symbol": target["symbol"],
         "benchmark": bench_name,
         "last_settled_week": common[-1],

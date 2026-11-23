@@ -219,6 +219,11 @@ def load_book(fetcher: Fetcher | None = None, *, force: bool = False,
         manual = client_manual.load(now=now)
         if manual is not None:
             return manual
+        import client_tenant
+        if client_tenant.hosted():
+            # Hébergé : ni chemin du serveur, ni IBKR, qui reste l'installation locale.
+            return {"error": "no holdings yet: tell the assistant what you hold (`add_holding`), "
+                             "or paste a statement (`import_holdings`)"}
         return {"error": f"no holdings yet: tell the assistant what you hold (`add_holding`, "
                          f"`import_holdings`), or connect IBKR — {error}"}
     report = refresh(config, fetcher or default_fetcher, force=force, now=now)
@@ -377,6 +382,7 @@ def weekly_chart(symbol: str, getter=None, *, now: datetime.datetime | None = No
         notes.append(f"book unavailable, average cost not drawn: {book['error']}")
     return {
         "png": png,
+        "axes": png_chart.axes(weeks, cost, plan_levels),
         "symbol": wanted,
         "currency": position["currency"],
         "last_settled_week": last["week"],

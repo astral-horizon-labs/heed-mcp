@@ -34,6 +34,7 @@ for folder in (ROOT / "scripts", pathlib.Path(__file__).resolve().parent):
 
 import atomic_file  # noqa: E402  # type: ignore[import-not-found]
 import client_book  # noqa: E402
+import client_tenant  # noqa: E402
 import client_messages  # noqa: E402
 import client_prices  # noqa: E402
 import decision_schema  # noqa: E402  # type: ignore[import-not-found]
@@ -44,6 +45,10 @@ LIVE_STATUSES = ("armed", "TRIGGERED", "RETURNED")
 
 
 def book_dir() -> pathlib.Path:
+    # Hébergé, le livre est celui de l'utilisateur qui pose la question (2026-11-22).
+    mine = client_tenant.book_dir()
+    if mine is not None:
+        return mine
     configured = os.environ.get("WALLET_CLIENT_BOOK")
     return pathlib.Path(configured).expanduser() if configured else (
         pathlib.Path.home() / ".local" / "share" / "wallet-client" / "book")
