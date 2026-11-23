@@ -55,12 +55,12 @@ def book_dir() -> pathlib.Path:
 
 
 def plan_path(symbol: str) -> pathlib.Path:
-    return book_dir() / "plans" / f"{symbol}.json"
+    return book_dir() / "plans" / client_tenant.stored_name(f"{symbol}.json")
 
 
 def read_plan(symbol: str) -> dict | None:
     try:
-        return json.loads(plan_path(symbol).read_text(encoding="utf-8")).get("decision")
+        return json.loads(client_tenant.unseal(plan_path(symbol).read_text(encoding="utf-8"))).get("decision")
     except (FileNotFoundError, json.JSONDecodeError):
         return None
 
@@ -72,7 +72,7 @@ def append_event(event: str, symbol: str, **extra: object) -> None:
     entry = {"at": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"),
              "event": event, "symbol": symbol, **extra}
     with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        handle.write(client_tenant.seal(json.dumps(entry, ensure_ascii=False)) + "\n")
 
 
 def held_lines(**options) -> tuple[list[dict] | None, str | None, str | None]:
@@ -193,9 +193,9 @@ def set_plan(symbol: str, thesis: str, horizon: str, if_hit: str, if_miss: str,
     path = plan_path(sym)
     path.parent.mkdir(parents=True, exist_ok=True)
     with atomic_file.locked(path):
-        atomic_file.write_text(path, json.dumps(
+        atomic_file.write_text(path, client_tenant.seal(json.dumps(
             {"symbol": sym, "conid": position["contract_id"], "decision": decision,
-             "updated_on": now.date().isoformat()}, indent=2, ensure_ascii=False) + "\n")
+             "updated_on": now.date().isoformat()}, indent=2, ensure_ascii=False) + "\n"))
     append_event("plan_saved", sym, levels=len(parsed), horizon=horizon,
                  **({"reason": reason.strip()} if reason else {}))
     exits = [lv for lv in decision.get("levels") or []

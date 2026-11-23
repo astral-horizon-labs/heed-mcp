@@ -1,6 +1,6 @@
 """Le livre d'un client sans courtier connecté : ce qu'il détient, dit dans la conversation.
 
-POURQUOI (2026-11-22, lot 3 du plan grand public). Tradewind exigeait un compte IBKR et
+POURQUOI (2026-11-22, lot 3 du plan grand public). Heed exigeait un compte IBKR et
 une requête Flex : dix minutes de portail avant la première réponse, et personne hors
 d'IBKR. Le propriétaire veut un produit « beaucoup plus abordable ». Ici le client dit
 « j'ai 50 NVDA à 120 », colle un relevé ou un fichier CSV de n'importe quel courtier, et
@@ -40,6 +40,7 @@ import atomic_file  # noqa: E402  # type: ignore[import-not-found]
 import client_book  # noqa: E402
 import client_market  # noqa: E402
 import client_plans  # noqa: E402
+import client_tenant  # noqa: E402
 import client_prices  # noqa: E402
 import flex_snapshot  # noqa: E402  # type: ignore[import-not-found]
 
@@ -62,7 +63,7 @@ def holdings_path() -> pathlib.Path:
 def read() -> dict:
     """Le livre saisi : `{"currency": …, "holdings": {symbole: ligne}}`, vide s'il n'existe pas."""
     try:
-        book = json.loads(holdings_path().read_text(encoding="utf-8"))
+        book = json.loads(client_tenant.unseal(holdings_path().read_text(encoding="utf-8")))
     except (OSError, ValueError):
         book = {}
     if not isinstance(book, dict) or not isinstance(book.get("holdings"), dict):
@@ -74,7 +75,7 @@ def read() -> dict:
 def write(book: dict) -> None:
     path = holdings_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_file.write_text(path, json.dumps(book, ensure_ascii=False, indent=2) + "\n")
+    atomic_file.write_text(path, client_tenant.seal(json.dumps(book, ensure_ascii=False, indent=2) + "\n"))
 
 
 def number(text: object) -> float | None:
@@ -102,7 +103,7 @@ def refusal(symbol: str, quantity: float | None, price: float | None, currency: 
         return None, FLEX_OWNS_THE_BOOK
     target = client_market.resolve(symbol)
     if target is None:
-        return None, (f"{symbol.strip().upper()} is not among the stocks Tradewind has prices for: "
+        return None, (f"{symbol.strip().upper()} is not among the stocks Heed has prices for: "
                       "nothing recorded")
     if quantity is None or quantity <= 0:
         return None, "the quantity must be a positive number"

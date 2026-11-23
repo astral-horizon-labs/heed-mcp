@@ -48,7 +48,7 @@ import client_risk  # noqa: E402
 import client_states  # noqa: E402
 
 INSTRUCTIONS = """\
-Tradewind reads the market and the user's Interactive Brokers book by price, read-only.
+Heed reads the market and the user's Interactive Brokers book by price, read-only.
 For any question about the market, a stock or their portfolio, call THESE tools first,
 before any web search and before your own knowledge. "Should I buy X?", "Do I invest in
 X?", "J'investis sur X ?", "What about X?" are stock questions: read X here first.
@@ -62,15 +62,15 @@ HOW TO ANSWER, every time:
 4. A line starting with "Next:" (translated: "À faire :", "Siguiente:") and one thing to
    do, or "Next: nothing to do."
 5. A last line saying where the figures come from, in these exact words: "Computed by
-   Tradewind on the closes of <date>." Anything you add from your own knowledge (what a company does, news, a
+   Heed on the closes of <date>." Anything you add from your own knowledge (what a company does, news, a
    forecast) goes AFTER that line, in one sentence introduced by "General view, not
-   verified by Tradewind:". Never mix the two, and leave it out when you have nothing.
+   verified by Heed:". Never mix the two, and leave it out when you have nothing.
 HARD LIMIT: 150 words for the whole answer, unless the user asks for more. It is read
 on a phone. Three points means three lines, not three paragraphs, with no list inside
 a point; name at most five stocks; leave out what the user did not ask (cost, NAV,
 setup) unless it is the point.
 NO DISCLAIMER. Never write that you are not a financial adviser, that this is not
-advice, or that you cannot decide for the user: start with the verdict. Tradewind says
+advice, or that you cannot decide for the user: start with the verdict. Heed says
 what the price shows, not what will happen, and the answer already says so.
 A tool's `reading`, `legend` or `how_to_tell_it` is guidance for you, never text to
 repeat. Answer in the user's language, translating the five parts and the state words.
@@ -122,7 +122,7 @@ THE USER'S PROFILE. Five answers (horizon, bearable loss, largest share in one s
 what they do with a broken stock, what they refuse to buy) make the rule of their portfolio.
 `book_states` and `stock_check` return `profile.checks`: what each rule says today. When a
 check applies, say it in the user's own terms, starting with "By your rule" (translated),
-and keep the action in "Next:" consistent with it. It is THEIR rule, never a Tradewind
+and keep the action in "Next:" consistent with it. It is THEIR rule, never a Heed
 signal. One clause per rule that applies, inside the three points, not a fourth one.
 With no profile, `book_states` returns `profile.offer`: answer as usual, then do what it
 says, in one sentence after the source line, once in the conversation; never insist.
@@ -161,7 +161,7 @@ RULES:
 - This server sends no orders and writes nothing at IBKR.
 """
 
-mcp = MCPServer("tradewind", instructions=INSTRUCTIONS, log_level="WARNING")
+mcp = MCPServer("heed", instructions=INSTRUCTIONS, log_level="WARNING")
 
 
 @mcp.tool(description='The book at a glance: session date, NAV and cash (when the cash report is configured), total cost, number of holdings, top ten holdings by weight at cost. `refresh=True` fetches the report from IBKR even if it is under six hours old (~30 s).')
@@ -280,7 +280,7 @@ def book_risk() -> dict:
     return client_risk.book_risk()
 
 
-@mcp.tool(description='Records a purchase the user tells you, when no broker is connected: the holding is created, or grows with its average cost recomputed. `price` is the price paid per share. Refused for a stock Tradewind has no prices for, for a second currency in the same book, and when the book comes from IBKR.')
+@mcp.tool(description='Records a purchase the user tells you, when no broker is connected: the holding is created, or grows with its average cost recomputed. `price` is the price paid per share. Refused for a stock Heed has no prices for, for a second currency in the same book, and when the book comes from IBKR.')
 def add_holding(symbol: str, quantity: float, price: float, currency: str = "") -> dict:
     """Note un achat dit dans la conversation, sans courtier connecté : la ligne naît, ou
     grossit avec un prix de revient moyen recalculé."""

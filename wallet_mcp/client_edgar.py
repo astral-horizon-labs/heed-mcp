@@ -1,6 +1,6 @@
 """Ce que la société publie : dates de résultats, dépôts récents, chiffres déclarés.
 
-POURQUOI (2026-11-22, lot 5 du plan grand public). Tradewind lit le prix. Le prix ne
+POURQUOI (2026-11-22, lot 5 du plan grand public). Heed lit le prix. Le prix ne
 contient pas le trou d'une publication : un titre qui « tient » le jeudi peut ouvrir
 dix pour cent plus bas le vendredi de ses résultats. La maquette validée laissait donc
 un trou assumé, « la prochaine date de résultats s'ajoutera ici ». Ce module le
@@ -44,7 +44,7 @@ import atomic_file  # noqa: E402  # type: ignore[import-not-found]
 import client_book  # noqa: E402
 import client_market  # noqa: E402
 
-SEC_UA = {"User-Agent": "Tradewind (Astral Horizon Labs) hello@astral-horizon-labs.com"}
+SEC_UA = {"User-Agent": "Heed (Astral Horizon Labs) hello@astral-horizon-labs.com"}
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 SUBMISSIONS_URL = "https://data.sec.gov/submissions/CIK{cik:010d}.json"
 FACTS_URL = "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json"

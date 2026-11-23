@@ -1,6 +1,6 @@
-# Tradewind in Claude Code or Codex — installation
+# Heed in Claude Code or Codex — installation
 
-The Tradewind MCP server reads your portfolio and the market by price, read-only. Your
+The Heed MCP server reads your portfolio and the market by price, read-only. Your
 portfolio is either what you tell the assistant ("I hold 50 NVDA bought at 120", or a
 statement pasted from any broker), or your Interactive Brokers account through its Flex
 report. It gives you, inside your assistant:
@@ -97,7 +97,7 @@ python3 wallet_mcp/install_client.py --check
 The command asks for the token and the query IDs (`--query-id-nav` and
 `--query-id-cashtx` add the NAV queries later). It obtains its price server key by
 itself, installs the server's dependency, writes `~/.config/wallet/client.json`
-(readable by you only), registers the `tradewind` server in Claude Code and Codex when
+(readable by you only), registers the `heed` server in Claude Code and Codex when
 they are installed, then fetches your book a first time.
 
 Claude Desktop: add the command the installer prints (`.venv-client/bin/python` and

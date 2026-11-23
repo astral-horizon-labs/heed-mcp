@@ -1,6 +1,6 @@
-# Tradewind — the MCP server for Interactive Brokers investors
+# Heed — the MCP server that reads your portfolio by price
 
-Tradewind is a local MCP server for Claude Code and Codex. It reads the market and your
+Heed is a local MCP server for Claude Code and Codex. It reads the market and your
 portfolio by price, read-only. Your portfolio is what you tell your assistant ("I hold
 50 NVDA bought at 120", or a statement pasted from any broker), or your Interactive
 Brokers account through its Flex report. It gives your assistant:
@@ -37,12 +37,12 @@ needs its prices, and the SEC sees which company's filings your machine reads.
 **Without a broker account**, with Python 3.11 or newer:
 
 ```bash
-git clone https://github.com/astral-horizon-labs/tradewind.git
-cd tradewind
+git clone https://github.com/astral-horizon-labs/heed-mcp.git
+cd heed-mcp
 python3 wallet_mcp/install_client.py --no-broker
 ```
 
-The installer obtains its price server key by itself and registers the `tradewind`
+The installer obtains its price server key by itself and registers the `heed`
 server in Claude Code and Codex. Then tell your assistant what you hold, or paste a
 statement, and ask: "how is my portfolio doing?".
 

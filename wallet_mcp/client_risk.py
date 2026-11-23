@@ -28,6 +28,7 @@ for folder in (ROOT / "scripts", pathlib.Path(__file__).resolve().parent):
 
 import client_book  # noqa: E402
 import client_plans  # noqa: E402
+import client_tenant  # noqa: E402
 import client_prices  # noqa: E402
 import decision_schema  # noqa: E402  # type: ignore[import-not-found]
 
@@ -188,7 +189,7 @@ def plan_history(symbol: str) -> dict:
     try:
         for line in path.read_text(encoding="utf-8").splitlines():
             try:
-                event = json.loads(line)
+                event = json.loads(client_tenant.unseal(line))
             except ValueError:
                 continue
             if event.get("symbol") == wanted:

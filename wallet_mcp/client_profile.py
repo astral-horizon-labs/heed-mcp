@@ -16,7 +16,7 @@ CINQ QUESTIONS, pas davantage :
 CE QUE LE PROFIL CHANGE. Les outils confrontent le livre à ces réponses par un calcul
 (perte face à la limite, poids de chaque ligne face à la part maximale, lignes cassées
 face à sa règle) et rendent des phrases qui nomment SA règle. L'assistant la cite (« by your
-rule… ») : c'est la règle du client, pas un signal de Tradewind. La mesure du lot 1
+rule… ») : c'est la règle du client, pas un signal de Heed. La mesure du lot 1
 reste vraie et reste dite : un état ne prédit pas la suite.
 
 Le profil vit dans le dossier du livre du client, sur sa machine. Rien n'est exigé : un
@@ -36,6 +36,7 @@ for folder in (ROOT / "scripts", pathlib.Path(__file__).resolve().parent):
 
 import atomic_file  # noqa: E402  # type: ignore[import-not-found]
 import client_plans  # noqa: E402
+import client_tenant  # noqa: E402
 
 PROFILE_FILE = "profile.json"
 HORIZONS = {
@@ -68,11 +69,11 @@ FIELDS = tuple(question["field"] for question in QUESTIONS)
 RETIRED = ("target_holdings",)
 OFFER = ("no profile yet. After the source line, add ONE sentence: five quick questions (when they need "
          "the money, the loss they can bear, the largest share they accept in one stock, what they do with a "
-         "broken stock, what they refuse to buy) would let Tradewind read the portfolio by their own "
+         "broken stock, what they refuse to buy) would let Heed read the portfolio by their own "
          "rule. Offer it once, never insist")
 STATE_WORDS = {"holds": "holds", "fragile": "is fragile", "broken": "is broken"}
 HOW_TO_USE = ("cite the user's own rule in their words (\"by your rule…\"): it is their rule, not a "
-              "Tradewind signal, and a state still does not forecast what a stock does next")
+              "Heed signal, and a state still does not forecast what a stock does next")
 
 
 def profile_path() -> pathlib.Path:
@@ -81,7 +82,7 @@ def profile_path() -> pathlib.Path:
 
 def read() -> dict:
     try:
-        found = json.loads(profile_path().read_text(encoding="utf-8"))
+        found = json.loads(client_tenant.unseal(profile_path().read_text(encoding="utf-8")))
     except (OSError, ValueError):
         return {}
     return found if isinstance(found, dict) else {}
@@ -152,7 +153,7 @@ def update(horizon: str | None = None, max_loss_pct: float | None = None, max_we
     profile["updated_on"] = now.date().isoformat()
     path = profile_path()
     path.parent.mkdir(parents=True, exist_ok=True)
-    atomic_file.write_text(path, json.dumps(profile, ensure_ascii=False, indent=2) + "\n")
+    atomic_file.write_text(path, client_tenant.seal(json.dumps(profile, ensure_ascii=False, indent=2) + "\n"))
     return describe(profile)
 
 

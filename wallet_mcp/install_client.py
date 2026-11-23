@@ -46,7 +46,10 @@ PACKAGE = HERE.parent
 VENV = PACKAGE / ".venv-client"
 SERVER = HERE / "client_server.py"
 REQUIREMENTS = HERE / "requirements-client.txt"
-SERVER_NAME = "tradewind"
+SERVER_NAME = "heed"
+#: Les noms sous lesquels une installation antérieure a pu enregistrer le serveur
+#: (« tradewind » jusqu'au 2026-11-23) : retirés de Claude Code, signalés pour Codex.
+LEGACY_NAMES = ("tradewind",)
 DEFAULT_PRICES_URL = "https://wallet-prices.kakobaba1212.workers.dev"
 FIELDS = (  # (clé, drapeau, question, secret, obligatoire) ; question None : jamais posée
     ("token", "token", "Flex Web Service token", True, True),
@@ -134,8 +137,9 @@ def register_claude() -> str:
     claude = shutil.which("claude")
     if not claude:
         return "Claude Code not found: registration skipped"
-    subprocess.run([claude, "mcp", "remove", "--scope", "user", SERVER_NAME],
-                   capture_output=True, check=False)
+    for name in (SERVER_NAME, *LEGACY_NAMES):
+        subprocess.run([claude, "mcp", "remove", "--scope", "user", name],
+                       capture_output=True, check=False)
     result = subprocess.run([claude, "mcp", "add", "--scope", "user", SERVER_NAME, "--",
                              str(venv_python()), str(SERVER)], capture_output=True, text=True, check=False)
     return ("Claude Code: \"wallet\" server registered" if result.returncode == 0
@@ -149,12 +153,14 @@ def register_codex() -> str:
     config = folder / "config.toml"
     text = config.read_text(encoding="utf-8") if config.exists() else ""
     header = f"[mcp_servers.{SERVER_NAME}]"
+    legacy = [f"[mcp_servers.{name}]" for name in LEGACY_NAMES if f"[mcp_servers.{name}]" in text]
+    note = f" ({', '.join(legacy)} from an earlier install can be removed from it)" if legacy else ""
     if header in text:
-        return f"Codex: {header} already in {config}, left as is"
+        return f"Codex: {header} already in {config}, left as is{note}"
     block = (f"\n{header}\ncommand = {json.dumps(str(venv_python()))}\n"
              f"args = [{json.dumps(str(SERVER))}]\n")
     write_private(config, text.rstrip("\n") + "\n" + block if text else block.lstrip("\n"))
-    return f"Codex: {header} added to {config}"
+    return f"Codex: {header} added to {config}{note}"
 
 
 def status(check: bool) -> int:
@@ -176,7 +182,7 @@ def status(check: bool) -> int:
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="Installs the Tradewind MCP server (Claude Code, Codex).")
+    parser = argparse.ArgumentParser(description="Installs the Heed MCP server (Claude Code, Codex).")
     for _, flag, question, _, _ in FIELDS:
         parser.add_argument(f"--{flag.replace('_', '-')}", dest=flag, help=question or (
             "price server URL (ours by default)" if flag == "prices_url"
